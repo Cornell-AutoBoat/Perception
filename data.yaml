@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 18
+names: ['B3-sign', 'B4-sign', 'B5-sign', 'G3-sign', 'G4-sign', 'G5-sign', 'R3-sign', 'R4-sign', 'R5-sign', 'Skee-ball-target', 'Water-target', 'black-buoy', 'blue-buoy', 'green-buoy', 'green-column-buoy', 'red-buoy', 'red-column-buoy', 'yellow-buoy']
+
+roboflow:
+  workspace: cornell-autoboat
+  project: annotating-buoys
+  version: 22
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/cornell-autoboat/annotating-buoys/dataset/22
