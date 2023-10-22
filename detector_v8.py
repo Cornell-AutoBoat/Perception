@@ -24,12 +24,13 @@ rospack = rospkg.RosPack()
 sys.path.insert(0, rospack.get_path('test') + '/src/custom-CV-node/yolov5')
 sys.path.insert(0, rospack.get_path('test') + '/src/custom-CV-node')
 
-
 # global variables
 IMG_SIZE = 416  # in pixels
 CONF_THRESH = 0.3  # proportion
 # filename of model, should be in weights directory
 FILENAME = 'yolov8L-10-22-2023.pt'
+
+prev = None
 
 
 class TimestampHandler:
@@ -278,6 +279,10 @@ def main():
                 obj.z = object.position[2]
                 msg.objects.append(obj)
 
+            if prev != None:
+                msg = persistent_memory(msg, prev)
+            prev = msg
+
             pub.publish(msg)
             # print("{} {} {}".format(object.id, object.position, label))
 
@@ -309,6 +314,11 @@ def main():
     # viewer.exit()
     exit_signal = True
     zed.close()
+
+
+# persistent memory skeleton code
+def persistent_memory(m, pm):
+    return m
 
 
 if __name__ == '__main__':
