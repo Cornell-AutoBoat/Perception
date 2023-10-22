@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 
+from test.msg import ZEDdata
+from test.msg import Object
+import cv_viewer.tracking_viewer as cv_viewer
+import ogl_viewer.viewer as gl
+from time import sleep
+from threading import Lock, Thread
 import sys
 import numpy as np
 
@@ -18,15 +24,12 @@ rospack = rospkg.RosPack()
 sys.path.insert(0, rospack.get_path('test') + '/src/custom-CV-node/yolov5')
 sys.path.insert(0, rospack.get_path('test') + '/src/custom-CV-node')
 
-from threading import Lock, Thread
-from time import sleep
 
-import ogl_viewer.viewer as gl
-import cv_viewer.tracking_viewer as cv_viewer
-
-
-from test.msg import Object
-from test.msg import ZEDdata
+# global variables
+IMG_SIZE = 416  # in pixels
+CONF_THRESH = 0.3  # proportion
+# filename of model, should be in weights directory
+FILENAME = 'yolov8L-10-22-2023.pt'
 
 
 class TimestampHandler:
@@ -39,23 +42,26 @@ class TimestampHandler:
     # check if the new timestamp is higher than the reference one, and if yes, save the current as reference
     def is_new(self, sensor):
         if (isinstance(sensor, sl.IMUData)):
-            new_ = (sensor.timestamp.get_microseconds() > self.t_imu.get_microseconds())
+            new_ = (sensor.timestamp.get_microseconds()
+                    > self.t_imu.get_microseconds())
             if new_:
                 self.t_imu = sensor.timestamp
             return new_
         elif (isinstance(sensor, sl.MagnetometerData)):
-            new_ = (sensor.timestamp.get_microseconds() > self.t_mag.get_microseconds())
+            new_ = (sensor.timestamp.get_microseconds()
+                    > self.t_mag.get_microseconds())
             if new_:
                 self.t_mag = sensor.timestamp
             return new_
         elif (isinstance(sensor, sl.BarometerData)):
-            new_ = (sensor.timestamp.get_microseconds() > self.t_baro.get_microseconds())
+            new_ = (sensor.timestamp.get_microseconds()
+                    > self.t_baro.get_microseconds())
             if new_:
                 self.t_baro = sensor.timestamp
             return new_
 
 
-with open(sys.path[0] + '/data.yaml', 'r') as file:
+with open(sys.path[0] + '/data_v8.yaml', 'r') as file:
     object_map = yaml.safe_load(file)
 
 lock = Lock()
@@ -63,15 +69,14 @@ run_signal = False
 exit_signal = False
 
 
-
 def xywh2abcd(xywh, im_shape):
     output = np.zeros((4, 2))
 
     # Center / Width / Height -> BBox corners coordinates
-    x_min = (xywh[0] - 0.5*xywh[2]) #* im_shape[1]
-    x_max = (xywh[0] + 0.5*xywh[2]) #* im_shape[1]
-    y_min = (xywh[1] - 0.5*xywh[3]) #* im_shape[0]
-    y_max = (xywh[1] + 0.5*xywh[3]) #* im_shape[0]
+    x_min = (xywh[0] - 0.5*xywh[2])  # * im_shape[1]
+    x_max = (xywh[0] + 0.5*xywh[2])  # * im_shape[1]
+    y_min = (xywh[1] - 0.5*xywh[3])  # * im_shape[0]
+    y_max = (xywh[1] + 0.5*xywh[3])  # * im_shape[0]
 
     # A ------ B
     # | Object |
@@ -106,7 +111,6 @@ def detections_to_custom_box(detections, im, im0):
     return output
 
 
-
 def torch_thread(weights, img_size, conf_thres=0.2, iou_thres=0.45):
     global image_net, exit_signal, run_signal, detections
 
@@ -120,7 +124,8 @@ def torch_thread(weights, img_size, conf_thres=0.2, iou_thres=0.45):
 
             img = cv2.cvtColor(image_net, cv2.COLOR_BGRA2RGB)
             # https://docs.ultralytics.com/modes/predict/#video-suffixes
-            det = model.predict(img, save=False, imgsz=img_size, conf=conf_thres, iou=iou_thres)[0].cpu().numpy().boxes
+            det = model.predict(img, save=False, imgsz=img_size, conf=conf_thres, iou=iou_thres)[
+                0].cpu().numpy().boxes
 
             # ZED CustomBox format (with inverse letterboxing tf applied)
             detections = detections_to_custom_box(det, image_net)
@@ -135,7 +140,7 @@ def main():
     global image_net, exit_signal, run_signal, detections
 
     capture_thread = Thread(target=torch_thread,
-                            kwargs={'weights': sys.path[0] + '/weights/best-utd.pt', 'img_size': 416, "conf_thres": 0.4})
+                            kwargs={'weights': sys.path[0] + '/weights/' + FILENAME, 'img_size': IMG_SIZE, "conf_thres": CONF_THRESH})
     capture_thread.start()
 
     print("Initializing Camera...")
@@ -147,7 +152,8 @@ def main():
     #     input_type.set_from_svo_file(opt.svo)
 
     # Create a InitParameters object and set configuration parameters
-    init_params = sl.InitParameters(input_t=input_type, svo_real_time_mode=True)
+    init_params = sl.InitParameters(
+        input_t=input_type, svo_real_time_mode=True)
     init_params.camera_resolution = sl.RESOLUTION.HD720
     init_params.coordinate_units = sl.UNIT.METER
     init_params.depth_mode = sl.DEPTH_MODE.ULTRA  # QUALITY
@@ -199,15 +205,17 @@ def main():
     tracks_resolution = sl.Resolution(400, display_resolution.height)
     track_view_generator = cv_viewer.TrackingViewer(tracks_resolution, camera_config.camera_fps,
                                                     init_params.depth_maximum_distance)
-    track_view_generator.set_camera_calibration(camera_config.calibration_parameters)
-    image_track_ocv = np.zeros((tracks_resolution.height, tracks_resolution.width, 4), np.uint8)
+    track_view_generator.set_camera_calibration(
+        camera_config.calibration_parameters)
+    image_track_ocv = np.zeros(
+        (tracks_resolution.height, tracks_resolution.width, 4), np.uint8)
     # Camera pose
     cam_w_pose = sl.Pose()
 
     sensors_data = sl.SensorsData()
     ts_handler = TimestampHandler()
 
-    while not rospy.is_shutdown(): #viewer.is_available() and not exit_signal
+    while not rospy.is_shutdown():  # viewer.is_available() and not exit_signal
         if zed.grab(runtime_params) == sl.ERROR_CODE.SUCCESS:
             # -- Get the image
             lock.acquire()
@@ -226,27 +234,38 @@ def main():
             zed.ingest_custom_box_objects(detections)
             lock.release()
             zed.retrieve_objects(objects, obj_runtime_param)
-            
+
             msg = ZEDdata()
             py_translation = sl.Translation()
-            msg.tx = round(cam_w_pose.get_translation(py_translation).get()[0], 3)
-            msg.ty = round(cam_w_pose.get_translation(py_translation).get()[1], 3)
-            msg.tz = round(cam_w_pose.get_translation(py_translation).get()[2], 3)
+            msg.tx = round(cam_w_pose.get_translation(
+                py_translation).get()[0], 3)
+            msg.ty = round(cam_w_pose.get_translation(
+                py_translation).get()[1], 3)
+            msg.tz = round(cam_w_pose.get_translation(
+                py_translation).get()[2], 3)
             # print("Translation: tx: {0}, ty:  {1}, tz:  {2}, timestamp: {3}\n".format(tx, ty, tz, cam_w_pose.timestamp))
-            #Display orientation quaternion
+            # Display orientation quaternion
             py_orientation = sl.Orientation()
-            msg.ox = round(cam_w_pose.get_orientation(py_orientation).get()[0], 3)
-            msg.oy = round(cam_w_pose.get_orientation(py_orientation).get()[1], 3)
-            msg.oz = round(cam_w_pose.get_orientation(py_orientation).get()[2], 3)
-            msg.ow = round(cam_w_pose.get_orientation(py_orientation).get()[3], 3)
+            msg.ox = round(cam_w_pose.get_orientation(
+                py_orientation).get()[0], 3)
+            msg.oy = round(cam_w_pose.get_orientation(
+                py_orientation).get()[1], 3)
+            msg.oz = round(cam_w_pose.get_orientation(
+                py_orientation).get()[2], 3)
+            msg.ow = round(cam_w_pose.get_orientation(
+                py_orientation).get()[3], 3)
 
             if zed.get_sensors_data(sensors_data, sl.TIME_REFERENCE.CURRENT) == sl.ERROR_CODE.SUCCESS:
                 if ts_handler.is_new(sensors_data.get_imu_data()):
                     # Get linear and angular velocity
-                    msg.lin_a = sensors_data.get_imu_data().get_linear_acceleration()[2]
-                    msg.ang_vx = sensors_data.get_imu_data().get_angular_velocity()[0] * np.pi / 180
-                    msg.ang_vy = sensors_data.get_imu_data().get_angular_velocity()[1] * np.pi / 180
-                    msg.ang_vz = sensors_data.get_imu_data().get_angular_velocity()[2] * np.pi / 180
+                    msg.lin_a = sensors_data.get_imu_data().get_linear_acceleration()[
+                        2]
+                    msg.ang_vx = sensors_data.get_imu_data().get_angular_velocity()[
+                        0] * np.pi / 180
+                    msg.ang_vy = sensors_data.get_imu_data().get_angular_velocity()[
+                        1] * np.pi / 180
+                    msg.ang_vz = sensors_data.get_imu_data().get_angular_velocity()[
+                        2] * np.pi / 180
                     angular_velocity = sensors_data.get_imu_data().get_angular_velocity()
                     # print(" \t Angular Velocities: [ {0} {1} {2} ] [deg/sec]".format(angular_velocity[0], angular_velocity[1], angular_velocity[2]))
             for object in objects.object_list:
@@ -260,15 +279,14 @@ def main():
                 msg.objects.append(obj)
 
             pub.publish(msg)
-                # print("{} {} {}".format(object.id, object.position, label))
-            
-
+            # print("{} {} {}".format(object.id, object.position, label))
 
             # -- Display
             # Retrieve display data
             # zed.retrieve_measure(point_cloud, sl.MEASURE.XYZRGBA, sl.MEM.CPU, point_cloud_res)
             # point_cloud.copy_to(point_cloud_render)
-            zed.retrieve_image(image_left, sl.VIEW.LEFT, sl.MEM.CPU, display_resolution)
+            zed.retrieve_image(image_left, sl.VIEW.LEFT,
+                               sl.MEM.CPU, display_resolution)
             zed.get_position(cam_w_pose, sl.REFERENCE_FRAME.WORLD)
 
             # 3D rendering
@@ -278,7 +296,8 @@ def main():
             # cv_viewer.render_2D(image_left_ocv, image_scale, objects, obj_param.enable_tracking)
             # global_image = cv2.hconcat([image_left_ocv, image_track_ocv])
             # Tracking view
-            track_view_generator.generate_view(objects, cam_w_pose, image_track_ocv, objects.is_tracked)
+            track_view_generator.generate_view(
+                objects, cam_w_pose, image_track_ocv, objects.is_tracked)
 
             # cv2.imshow("ZED | 2D View and Birds View", global_image)
             key = cv2.waitKey(10)

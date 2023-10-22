@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 7
+names: ['black-buoy', 'blue-buoy', 'green-buoy', 'green-column-buoy', 'red-buoy', 'red-column-buoy', 'yellow-buoy']
+
+roboflow:
+  workspace: testtraining
+  project: roboboat-sqhr5
+  version: 8
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/testtraining/roboboat-sqhr5/dataset/8
