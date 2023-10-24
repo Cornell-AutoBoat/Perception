@@ -318,6 +318,52 @@ def main():
 
 # persistent memory skeleton code
 def persistent_memory(m, pm):
+    pobjects = pm.objects
+    cobjects = m.objects
+
+    return m
+
+    # possible cases:
+    # case 1: buoy in previous frame is seen again in current frame
+    # do nothing
+    # case 2: buoy in previous frame is not seen again in current frame
+    # regardless of if there are not, we add prev buoy to current, and we decrement countDown
+    # case 3 trivial: buoy not in previous frame but seen in current frame
+    # do nothing
+    # case 4?: buoy in previous frame in same location but different label
+    # compare confidences and take the higher one
+    # if the higher one is from previous, add to current and decrement countDown, and remove other
+    # otherwise, do nothing
+    #
+
+    # m is current message
+    # contains:
+    # Object[] objects
+    # left handed z up?? yes
+    # float64 tx
+    # float64 ty
+    # float64 tz //up
+    # float64 ox
+    # float64 oy
+    # float64 oz
+    # float64 ow
+    # float64 lin_a
+    # float64 ang_vx
+    # float64 ang_vy
+    # float64 ang_vz
+
+    # object contains:
+    # string label
+    # float64 x //shouldn't move too much
+    # float64 y
+    # float64 z
+    # int8 countDown //parameter we can tweak
+    # float64 conf
+
+    # general idea:
+    # we convert our boat's position
+
+    # p is previous message
     return m
 
 
