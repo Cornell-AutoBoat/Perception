@@ -318,8 +318,40 @@ def main():
 
 # persistent memory skeleton code
 def persistent_memory(m, pm):
-    pobjects = pm.objects
-    cobjects = m.objects
+
+    # list to keep track of if buoy in previous frame is seen in new frame
+    pm_seen = [False] * pm.length
+
+    for m_index in range(len(m.objects)):
+        for pm_index in range(len(pm.objects)):
+            m_obj = m.objects[m_index]
+            pm_obj = pm.objects[pm_index]
+
+            # case 4: same location with different label
+            if m_obj.x == pm_obj.x and m_obj.y == pm_obj.y:
+                if m_obj.label != pm_obj.label:
+                    # if confidence of previous is higher, add to current and decrement
+                    # countDown and remove current
+                    if pm_obj.conf > m.objects[m_index].conf:
+                        pm_obj.conf -= 1
+                        m[m_index] = pm_obj  # replace m with p
+                        pm_seen[pm_index] = True
+
+            # case 1 buoy in previous frame is seen again in current frame
+            # use the speed and multiply by 1/15 (around 15 frames per second)
+            # to check that the buoy is the same
+            elif m_obj.x == pm_obj.x + m.tx / 15 and m_obj.y == pm_obj.y + m.ty / 15:
+                if m.objects[index].label == pm_obj.label:
+                    pm_seen[pm_index] = True
+
+    # case 2: buoy in previous frame is not seen again in current frame
+    # decrement countDown
+    for index, used in enumerate(pm_seen):
+        if used == False:
+            pm.objects[index].countDown -= 1
+            m.objects.append(pm.objects[index])
+
+    # case 3 is covered already (when adding objects seen in current frame to m)
 
     return m
 
