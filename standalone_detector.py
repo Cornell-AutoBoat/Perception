@@ -218,18 +218,23 @@ def persistent_memory(m, pm):
 
     for m_index in range(len(m.objects)):
         for pm_index in range(len(pm.objects)):
-            m_obj = m.objects[m_index]
-            pm_obj = pm.objects[pm_index]
+            m_obj = m.object_list[m_index] #position is x,y,z we care about x,y
+            pm_obj = pm.object_list[pm_index]
+
+            mx = m_obj.position[0]
+            my = m_obj.position[1]
+            pmx = pm_obj.position[0]
+            pmy = pm_obj.position[1]
 
             # case 4: same location with different label
-            if m_obj.x == pm_obj.x and m_obj.y == pm_obj.y:
-                if m_obj.label != pm_obj.label:
+            if (abs(mx-pmx) < 0.05 and abs(my-pmy) < 0.05):
+                if m_obj.raw_label != pm_obj.raw_label:
                     # if confidence of previous is higher, add to current and decrement
                     # countDown and remove current
-                    if pm_obj.conf > m.objects[m_index].conf:
-                        pm_obj.conf -= 1
-                        m[m_index] = pm_obj  # replace m with p
+                    if pm_obj.confidence > pum_obj.confidence:
+                        m[m_index] = pm_obj  # replace m with p #some issues with ordering of current and prev?
                         pm_seen[pm_index] = True
+                        break;
 
             # case 1 buoy in previous frame is seen again in current frame
             # use the speed and multiply by 1/15 (around 15 frames per second)
