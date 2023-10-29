@@ -28,7 +28,7 @@ sys.path.insert(0, rospack.get_path('test') + '/src/custom-CV-node')
 IMG_SIZE = 416  # in pixels
 CONF_THRESH = 0.3  # proportion
 # filename of model, should be in weights directory
-FILENAME = 'yolov8L-10-22-2023.pt'
+FILENAME = 'yolov8-10-22-2023.pt'
 COUNTDOWN_DEFAULT = 10
 
 prev = None
