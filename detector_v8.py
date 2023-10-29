@@ -29,6 +29,7 @@ IMG_SIZE = 416  # in pixels
 CONF_THRESH = 0.3  # proportion
 # filename of model, should be in weights directory
 FILENAME = 'yolov8L-10-22-2023.pt'
+COUNTDOWN_DEFAULT = 10
 
 prev = None
 
@@ -277,6 +278,8 @@ def main():
                 obj.x = object.position[0]
                 obj.y = object.position[1]
                 obj.z = object.position[2]
+                obj.countDown = COUNTDOWN_DEFAULT
+                obj.conf = object.confidence
                 msg.objects.append(obj)
 
             if prev != None:
@@ -333,7 +336,7 @@ def persistent_memory(m, pm):
                     # if confidence of previous is higher, add to current and decrement
                     # countDown and remove current
                     if pm_obj.conf > m.objects[m_index].conf:
-                        pm_obj.conf -= 1
+                        pm_obj.countDown -= 1
                         m[m_index] = pm_obj  # replace m with p
                         pm_seen[pm_index] = True
 
@@ -352,50 +355,6 @@ def persistent_memory(m, pm):
             m.objects.append(pm.objects[index])
 
     # case 3 is covered already (when adding objects seen in current frame to m)
-
-    return m
-
-    # possible cases:
-    # case 1: buoy in previous frame is seen again in current frame
-    # do nothing
-    # case 2: buoy in previous frame is not seen again in current frame
-    # regardless of if there are not, we add prev buoy to current, and we decrement countDown
-    # case 3 trivial: buoy not in previous frame but seen in current frame
-    # do nothing
-    # case 4?: buoy in previous frame in same location but different label
-    # compare confidences and take the higher one
-    # if the higher one is from previous, add to current and decrement countDown, and remove other
-    # otherwise, do nothing
-    #
-
-    # m is current message
-    # contains:
-    # Object[] objects
-    # left handed z up?? yes
-    # float64 tx
-    # float64 ty
-    # float64 tz //up
-    # float64 ox
-    # float64 oy
-    # float64 oz
-    # float64 ow
-    # float64 lin_a
-    # float64 ang_vx
-    # float64 ang_vy
-    # float64 ang_vz
-
-    # object contains:
-    # string label
-    # float64 x //shouldn't move too much
-    # float64 y
-    # float64 z
-    # int8 countDown //parameter we can tweak
-    # float64 conf
-
-    # general idea:
-    # we convert our boat's position
-
-    # p is previous message
     return m
 
 
