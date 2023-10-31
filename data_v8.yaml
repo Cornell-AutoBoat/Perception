@@ -3,7 +3,7 @@ val: ../valid/images
 test: ../test/images
 
 nc: 7
-names: ['black-buoy', 'blue-buoy', 'green-buoy', 'green-column-buoy', 'red-buoy', 'red-column-buoy', 'yellow-buoy']
+names: ['black-buoy', 'red-buoy', 'yellow-buoy', 'green-column-buoy', 'blue-buoy', 'red-column-buoy', 'green-buoy']
 
 roboflow:
   workspace: testtraining
