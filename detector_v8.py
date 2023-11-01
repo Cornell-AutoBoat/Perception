@@ -26,7 +26,7 @@ sys.path.insert(0, rospack.get_path('test') + '/src/custom-CV-node')
 
 # global variables
 IMG_SIZE = 416  # in pixels
-CONF_THRESH = 0.3  # proportion
+CONF_THRESH = 0.75  # proportion
 # filename of model, should be in weights directory
 FILENAME = 'yolov8-10-22-2023.pt'
 COUNTDOWN_DEFAULT = 10
@@ -126,7 +126,7 @@ def torch_thread(weights, img_size, conf_thres=0.2, iou_thres=0.45):
 
             img = cv2.cvtColor(image_net, cv2.COLOR_BGRA2RGB)
             # https://docs.ultralytics.com/modes/predict/#video-suffixes
-            det = model.predict(img, save=False, imgsz=img_size, conf=conf_thres, iou=iou_thres, verbose=False)[
+            det = model.predict(img, save=False, imgsz=IMG_SIZE, conf=CONF_THRESH, iou=iou_thres, verbose=False)[
                 0].cpu().numpy().boxes
 
             # ZED CustomBox format (with inverse letterboxing tf applied)
@@ -288,7 +288,8 @@ def main():
 
 
             if prev != None:
-                msg = persistent_memory(msg, prev)
+            	msg = persistent_memory(msg, prev)
+                
             prev = msg
 
             pub.publish(msg)
@@ -335,29 +336,34 @@ def persistent_memory(m, pm):
             pm_obj = pm.objects[pm_index]
 
             # case 4: same location with different label
-            if m_obj.x == pm_obj.x and m_obj.y == pm_obj.y:
+            if abs(m_obj.x-pm_obj.x) < 0.05 and abs(m_obj.y-pm_obj.y) < 0.05:
+                pm_seen[pm_index] = True
                 if m_obj.label != pm_obj.label:
                     # if confidence of previous is higher, add to current and decrement
                     # countDown and remove current
-                    if pm_obj.conf > m.objects[m_index].conf:
+                    if pm_obj.conf > m.objects[m_index].conf and pm_obj.countDown > 1:
                         pm_obj.countDown -= 1
-                        m[m_index] = pm_obj  # replace m with p
-                        pm_seen[pm_index] = True
-
+                        m.objects[m_index] = pm_obj  # replace m with p
             # case 1 buoy in previous frame is seen again in current frame
             # use the speed and multiply by 1/15 (around 15 frames per second)
             # to check that the buoy is the same
-            elif m_obj.x == pm_obj.x + m.tx / 15 and m_obj.y == pm_obj.y + m.ty / 15:
-                if m.objects[index].label == pm_obj.label:
-                    pm_seen[pm_index] = True
+                else:
+                    print(m.objects[m_index].label + "seen " + str(m.objects[m_index].countDown))
+                    #m.objects[m_index].countDown = pm_obj.countDown - 1
 
     # case 2: buoy in previous frame is not seen again in current frame
     # decrement countDown
     for index, used in enumerate(pm_seen):
         if used == False:
             pm.objects[index].countDown -= 1
-            m.objects.append(pm.objects[index])
+            if(pm.objects[index].countDown > 0):
+            	m.objects.append(pm.objects[index])
+    #print(pm_seen)
 
+    #case 5: seen two things in current in the same location with the same llocatoin
+    	    
+    print(len(m.objects))
+    
     # case 3 is covered already (when adding objects seen in current frame to m)
     return m
 
