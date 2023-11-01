@@ -139,7 +139,7 @@ def torch_thread(weights, img_size, conf_thres=0.2, iou_thres=0.45):
 def main():
     pub = rospy.Publisher('chatter', ZEDdata, queue_size=10)
     rospy.init_node('talker', anonymous=True)
-    global image_net, exit_signal, run_signal, detections
+    global image_net, exit_signal, run_signal, detections, prev
 
     capture_thread = Thread(target=torch_thread,
                             kwargs={'weights': sys.path[0] + '/weights/' + FILENAME, 'img_size': IMG_SIZE, "conf_thres": CONF_THRESH})
@@ -281,15 +281,15 @@ def main():
                 obj.x = object.position[0]
                 obj.y = object.position[1]
                 obj.z = object.position[2]
-                # obj.countDown = COUNTDOWN_DEFAULT
-                # obj.conf = object.confidence
+                obj.countDown = COUNTDOWN_DEFAULT
+                obj.conf = object.confidence
                 msg.objects.append(obj)
                 print("{} {} {}".format(object.id, object.position, label))
 
 
-            # if prev != None:
-            #     msg = persistent_memory(msg, prev)
-            # prev = msg
+            if prev != None:
+                msg = persistent_memory(msg, prev)
+            prev = msg
 
             pub.publish(msg)
 
@@ -327,7 +327,7 @@ def main():
 def persistent_memory(m, pm):
 
     # list to keep track of if buoy in previous frame is seen in new frame
-    pm_seen = [False] * pm.length
+    pm_seen = [False] * len(pm.objects)
 
     for m_index in range(len(m.objects)):
         for pm_index in range(len(pm.objects)):
