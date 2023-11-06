@@ -166,8 +166,8 @@ def torch_thread(weights, img_size, conf_thres=0.2, iou_thres=0.45):
 
 
 def main():
-    pub = rospy.Publisher('chatter', ZEDdata, queue_size=10)
-    rospy.init_node('talker', anonymous=True)
+    pub = rospy.Publisher('zed-data', ZEDdata, queue_size=10)
+    rospy.init_node('CameraNode', anonymous=True)
     global image_net, exit_signal, run_signal, detections
 
     capture_thread = Thread(target=torch_thread,
