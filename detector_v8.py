@@ -30,6 +30,7 @@ CONF_THRESH = 0.75  # proportion
 # filename of model, should be in weights directory
 FILENAME = 'yolov8-10-22-2023.pt'
 COUNTDOWN_DEFAULT = 10
+CLOSENESS_RADIUS = 0.05
 
 prev = None
 
@@ -193,17 +194,22 @@ def main():
     # Create OpenGL viewer
     viewer = gl.GLViewer()
     point_cloud_res = sl.Resolution(min(camera_res.width, 720),
-                                  min(camera_res.height, 404))
+                                    min(camera_res.height, 404))
     point_cloud_render = sl.Mat()
-    viewer.init(camera_infos.camera_model, point_cloud_res, obj_param.enable_tracking)
-    point_cloud = sl.Mat(point_cloud_res.width, point_cloud_res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU)
+    viewer.init(camera_infos.camera_model,
+                point_cloud_res, obj_param.enable_tracking)
+    point_cloud = sl.Mat(point_cloud_res.width,
+                         point_cloud_res.height, sl.MAT_TYPE.F32_C4, sl.MEM.CPU)
     image_left = sl.Mat()
     # Utilities for 2D display
     display_resolution = sl.Resolution(min(camera_res.width, 1280),
-                                        min(camera_res.height, 720))
-    image_scale = [display_resolution.width / camera_res.width, display_resolution.height / camera_res.height]
-    image_left_ocv = np.full((display_resolution.height, display_resolution.width, 4), [245, 239, 239, 255], np.uint8)
-    display_resolution = sl.Resolution(min(camera_res.width, 1280), min(camera_res.height, 720))
+                                       min(camera_res.height, 720))
+    image_scale = [display_resolution.width / camera_res.width,
+                   display_resolution.height / camera_res.height]
+    image_left_ocv = np.full((display_resolution.height, display_resolution.width, 4), [
+                             245, 239, 239, 255], np.uint8)
+    display_resolution = sl.Resolution(
+        min(camera_res.width, 1280), min(camera_res.height, 720))
 
     # Utilities for tracks view
     camera_config = zed.get_camera_information().camera_configuration
@@ -286,27 +292,28 @@ def main():
                 msg.objects.append(obj)
                 print("{} {} {}".format(object.id, object.position, label))
 
-
             if prev != None:
-            	msg = persistent_memory(msg, prev)
-                
+                msg = persistent_memory(msg, prev)
+
             prev = msg
 
             pub.publish(msg)
 
             # -- Display
             # Retrieve display data
-            zed.retrieve_measure(point_cloud, sl.MEASURE.XYZRGBA, sl.MEM.CPU, point_cloud_res)
+            zed.retrieve_measure(
+                point_cloud, sl.MEASURE.XYZRGBA, sl.MEM.CPU, point_cloud_res)
             point_cloud.copy_to(point_cloud_render)
             zed.retrieve_image(image_left, sl.VIEW.LEFT,
-                                sl.MEM.CPU, display_resolution)
+                               sl.MEM.CPU, display_resolution)
             zed.get_position(cam_w_pose, sl.REFERENCE_FRAME.WORLD)
 
             # 3D rendering
-            #viewer.updateData(point_cloud_render, objects)
+            # viewer.updateData(point_cloud_render, objects)
             # # 2D rendering
             np.copyto(image_left_ocv, image_left.get_data())
-            cv_viewer.render_2D(image_left_ocv, image_scale, objects, obj_param.enable_tracking)
+            cv_viewer.render_2D(image_left_ocv, image_scale,
+                                objects, obj_param.enable_tracking)
             global_image = cv2.hconcat([image_left_ocv, image_track_ocv])
             # Tracking view
             track_view_generator.generate_view(
@@ -325,47 +332,72 @@ def main():
 
 
 # persistent memory skeleton code
-def persistent_memory(m, pm):
+def persistent_memory(curr, prev):
+
+    return_list = []
 
     # list to keep track of if buoy in previous frame is seen in new frame
-    pm_seen = [False] * len(pm.objects)
+    # flags for if we've seen it before
+    prev_seen = [False] * len(prev.objects)
+    curr_seen = [False] * len(prev.objects)  # flags for if we've seen before
 
-    for m_index in range(len(m.objects)):
-        for pm_index in range(len(pm.objects)):
-            m_obj = m.objects[m_index]
-            pm_obj = pm.objects[pm_index]
+    for curr_index in range(len(curr.objects)):
+        for prev_index in range(len(prev.objects)):
+            curr_obj = curr.objects[curr_index]
+            prev_obj = prev.objects[prev_index]
 
-            # case 4: same location with different label
-            if abs(m_obj.x-pm_obj.x) < 0.05 and abs(m_obj.y-pm_obj.y) < 0.05:
-                pm_seen[pm_index] = True
-                if m_obj.label != pm_obj.label:
+            # case 1: same location buoy
+            if isNear(curr_obj, prev_obj, curr, prev, CLOSENESS_RADIUS):
+
+                # case 1a: seen before (bad heuristic)
+                if prev_seen[prev_index]:
+                    curr_seen[curr_index] = True
+
+                # case 1b: different label
+
+                elif curr_obj.label != prev_obj.label:
                     # if confidence of previous is higher, add to current and decrement
                     # countDown and remove current
-                    if pm_obj.conf > m.objects[m_index].conf and pm_obj.countDown > 1:
-                        pm_obj.countDown -= 1
-                        m.objects[m_index] = pm_obj  # replace m with p
-            # case 1 buoy in previous frame is seen again in current frame
-            # use the speed and multiply by 1/15 (around 15 frames per second)
-            # to check that the buoy is the same
+                    if prev_obj.conf > curr.objects[curr_index].conf and prev_obj.countDown > 1:
+                        if prev_seen[prev_index]:
+                            prev_obj.countDown -= 1
+                        curr.objects[curr_index] = prev_obj  # replace m with p
+                    prev_seen[prev_index] = True
+
+                # case 1c: same label
                 else:
-                    print(m.objects[m_index].label + "seen " + str(m.objects[m_index].countDown))
-                    #m.objects[m_index].countDown = pm_obj.countDown - 1
+                    # print(curr.objects[curr_index].label + "seen " +
+                    #       str(curr.objects[curr_index].countDown))
+                    prev_seen[prev_index] = True
+
+                # break out if seen before so as not to double decrement
+                if prev_seen[prev_index]:
+                    break
+
+        if not curr_seen[curr_index]:
+            return_list.append(curr[curr_index])
 
     # case 2: buoy in previous frame is not seen again in current frame
     # decrement countDown
-    for index, used in enumerate(pm_seen):
+    for index, used in enumerate(prev_seen):
         if used == False:
-            pm.objects[index].countDown -= 1
-            if(pm.objects[index].countDown > 0):
-            	m.objects.append(pm.objects[index])
-    #print(pm_seen)
+            prev.objects[index].countDown -= 1
+            if (prev.objects[index].countDown > 0):
+                return_list.objects.append(prev.objects[index])
 
-    #case 5: seen two things in current in the same location with the same llocatoin
-    	    
-    print(len(m.objects))
-    
+    print(len(return_list.objects))
+
     # case 3 is covered already (when adding objects seen in current frame to m)
-    return m
+    return return_list
+
+
+def isNear(o1, o2, curr, prev, radius):
+    # o1 is object 1
+    # o2 is object 2
+    # both objects have position
+    # currently we just check x,y to be within a radius,
+    # we can check z coord and also do math to calculate different orientation/velocity
+    return abs(o1.x-o2.x) < radius and abs(o1.y-o2.y) < radius
 
 
 if __name__ == '__main__':
