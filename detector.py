@@ -15,8 +15,8 @@ import rospkg
 
 rospack = rospkg.RosPack()
 
-sys.path.insert(0, rospack.get_path('test') + '/src/custom-CV-node/yolov5')
-sys.path.insert(0, rospack.get_path('test') + '/src/custom-CV-node')
+sys.path.insert(0, rospack.get_path('test') + '/src/Perception/yolov5')
+sys.path.insert(0, rospack.get_path('test') + '/src/Perception')
 
 from yolov5.models.experimental import attempt_load
 from yolov5.utils.general import check_img_size, non_max_suppression, scale_coords, xyxy2xywh
@@ -166,7 +166,7 @@ def torch_thread(weights, img_size, conf_thres=0.2, iou_thres=0.45):
 
 
 def main():
-    pub = rospy.Publisher('zed-data', ZEDdata, queue_size=10)
+    pub = rospy.Publisher('zed_data', ZEDdata, queue_size=10)
     rospy.init_node('CameraNode', anonymous=True)
     global image_net, exit_signal, run_signal, detections
 
