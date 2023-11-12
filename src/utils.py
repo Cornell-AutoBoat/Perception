@@ -1,4 +1,6 @@
-# persistent memory skeleton code
+CLOSENESS_RADIUS = 0.05  # in meters
+
+
 def persistent_memory(curr, prev):
 
     return_list = []
@@ -16,7 +18,7 @@ def persistent_memory(curr, prev):
             # case 1: same location buoy
             if isNear(curr_obj, prev_obj, curr, prev, CLOSENESS_RADIUS):
 
-                # case 1a: seen before (bad heuristic)
+                # case 1a: seen before (bad heuristic) //to prevent double counting
                 if prev_seen[prev_index]:
                     curr_seen[curr_index] = True
 
@@ -65,3 +67,19 @@ def isNear(o1, o2, curr, prev, radius):
     # currently we just check x,y to be within a radius,
     # we can check z coord and also do math to calculate different orientation/velocity
     return abs(o1.x-o2.x) < radius and abs(o1.y-o2.y) < radius
+
+
+def removeDuplicates(object_list, curr=None, prev=None):
+    return_list = []
+    for obj in object_list:
+        seen = False
+        for i in range(0, len(return_list)):
+            obj2 = return_list[i]
+            if isNear(obj, obj2, None, None, CLOSENESS_RADIUS):
+                seen = True
+                if (obj.conf > obj2.conf):
+                    return_list[i] = obj
+        if not seen:
+            return_list.append(obj)
+
+    return return_list
