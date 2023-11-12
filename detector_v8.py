@@ -358,7 +358,7 @@ def persistent_memory(curr, prev):
                 elif curr_obj.label != prev_obj.label:
                     # if confidence of previous is higher, add to current and decrement
                     # countDown and remove current
-                    if prev_obj.conf > curr.objects[curr_index].conf and prev_obj.countDown > 1:
+                    if prev_obj.conf > curr_obj.conf and prev_obj.countDown > 1:
                         if prev_seen[prev_index]:
                             prev_obj.countDown -= 1
                         curr.objects[curr_index] = prev_obj  # replace m with p
@@ -380,7 +380,7 @@ def persistent_memory(curr, prev):
     # case 2: buoy in previous frame is not seen again in current frame
     # decrement countDown
     for index, used in enumerate(prev_seen):
-        if used == False:
+        if not used:
             prev.objects[index].countDown -= 1
             if (prev.objects[index].countDown > 0):
                 return_list.objects.append(prev.objects[index])
