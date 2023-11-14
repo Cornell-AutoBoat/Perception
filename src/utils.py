@@ -3,6 +3,9 @@ CLOSENESS_RADIUS = 0.05  # in meters
 
 def persistent_memory(curr, prev):
 
+    prev.objects = removeDuplicates(prev.objects)
+    curr.objects = removeDuplicates(curr.objects)
+
     return_list = []
 
     # list to keep track of if buoy in previous frame is seen in new frame
@@ -69,6 +72,7 @@ def isNear(o1, o2, curr, prev, radius):
     return abs(o1.x-o2.x) < radius and abs(o1.y-o2.y) < radius
 
 
+# returns a list of buoys with no two buoys in the same location
 def removeDuplicates(object_list, curr=None, prev=None):
     return_list = []
     for obj in object_list:
