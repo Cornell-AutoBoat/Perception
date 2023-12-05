@@ -1,11 +1,15 @@
-CLOSENESS_RADIUS = 0.05  # in meters
+CLOSENESS_RADIUS = 1.0  # in meters (larger than necessary)
 
 
 def persistent_memory(curr, prev):
 
     # case 0: cleaning up - two or more buoys in the same location
-    prev.objects = removeDuplicates(prev.objects)
-    curr.objects = removeDuplicates(curr.objects)
+
+    # prev.objects = removeDuplicates(prev.objects)
+    # curr.objects = removeDuplicates(curr.objects)
+
+    prev.objects = removeSameDuplicates(prev.objects)
+    curr.objects = removeSameDuplicates(curr.objects)
 
     # list to keep track of if buoy in previous frame is seen in new frame
     # flags for if we've seen it before
@@ -43,7 +47,10 @@ def persistent_memory(curr, prev):
             if (prev.objects[index].countDown > 0):
                 curr.objects.append(prev.objects[index])
 
-    print(len(curr.objects))
+    # print(len(curr.objects))
+
+    # remove duplicates again (just in case we double added)
+    curr.objects = removeSameDuplicates(curr.objects)
 
     return curr
 
@@ -65,6 +72,24 @@ def removeDuplicates(object_list, curr=None, prev=None):
         for i in range(0, len(return_list)):
             obj2 = return_list[i]
             if isNear(obj, obj2, None, None, CLOSENESS_RADIUS):
+                seen = True
+                if (obj.conf > obj2.conf):
+                    return_list[i] = obj
+        if not seen:
+            return_list.append(obj)
+
+    return return_list
+
+
+# returns a list of buoys with no two buoys in the same location
+def removeSameDuplicates(object_list, curr=None, prev=None):
+    return_list = []
+    for obj in object_list:
+        seen = False
+        for i in range(0, len(return_list)):
+            obj2 = return_list[i]
+            # compared to removeDuplicates, this checks for same label as well
+            if isNear(obj, obj2, None, None, CLOSENESS_RADIUS) and (obj2.label == obj.label):
                 seen = True
                 if (obj.conf > obj2.conf):
                     return_list[i] = obj
